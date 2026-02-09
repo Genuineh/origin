@@ -209,16 +209,21 @@ Phase 3: 语义增强 (6 周) → Phase 4: 生成与部署 (4 周)
   - [ ] 缓动函数
   - [ ] 过渡效果
 
-### Week 19-20: AI 集成
+### Week 19-20: AI 集成 (前端)
 
-- [ ] AI 服务 (Python/FastAPI)
-  - [ ] Claude API 集成
-  - [ ] Prompt 模板管理
-  - [ ] 上下文构建
-- [ ] 意图解析
-  - [ ] 自然语言 → DSL
-  - [ ] 设计建议
-  - [ ] 组件推荐
+- [ ] AI 服务接口
+  - [ ] OpenAI SDK 集成
+  - [ ] Anthropic SDK 集成
+  - [ ] Ollama SDK (本地 LLM)
+- [ ] AI 配置管理
+  - [ ] Provider 选择
+  - [ ] API Key 存储 (加密)
+  - [ ] Model 选择
+  - [ ] 自定义 Endpoint
+- [ ] Prompt 模板系统
+  - [ ] DSL 生成模板
+  - [ ] 建议生成模板
+  - [ ] 代码解释模板
 - [ ] AI 助手 UI
   - [ ] 聊天面板
   - [ ] 建议预览

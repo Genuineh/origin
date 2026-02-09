@@ -148,22 +148,50 @@ invoke('list_apis', {
 
 ---
 
-### AI 操作
+### AI 操作 (前端直接调用，非 IPC)
 
-#### 生成 DSL
-```rust
-invoke('ai_generate_dsl', {
-  prompt: string,
-  context?: ProjectContext
-}) => Promise<string>
+**注意**: AI 功能直接在前端实现，不通过 Tauri IPC。
+
+#### AI 配置管理 (本地存储)
+
+```typescript
+// 前端 Zustand Store
+interface AIConfigStore {
+  config: AIConfig;
+  setConfig: (config: AIConfig) => void;
+  getProvider: () => AIService;
+}
+
+// 配置结构
+interface AIConfig {
+  provider: 'openai' | 'anthropic' | 'ollama' | 'custom';
+  apiKey?: string;
+  model: string;
+  baseURL?: string;
+  temperature?: number;
+  maxTokens?: number;
+}
 ```
 
-#### 获取建议
-```rust
-invoke('ai_get_suggestions', {
-  document: UsdDocument,
-  intent: string
-}) => Promise<Suggestion[]>
+#### AI 服务接口 (前端)
+
+```typescript
+interface AIService {
+  // 配置
+  configure(config: AIConfig): void;
+
+  // 生成 DSL
+  generateDSL(prompt: string, context: ProjectContext): Promise<string>;
+
+  // 获取建议
+  getSuggestions(document: UsdDocument, intent: string): Promise<Suggestion[]>;
+
+  // 解释代码
+  explainCode(code: string): Promise<string>;
+
+  // 优化设计
+  optimizeDesign(dsl: string): Promise<string>;
+}
 ```
 
 ---
@@ -366,31 +394,6 @@ Content-Disposition: attachment; filename="myapp.zip"
 
 ---
 
-### AI 功能
-
-#### 设计建议
-```http
-POST /api/v1/ai/suggestions
-Content-Type: application/json
-
-{
-  "prompt": "创建一个登录页面",
-  "context": {
-    "framework": "flutter",
-    "screenSize": "mobile"
-  }
-}
-
-Response: 200 OK
-{
-  "dsl": "...",
-  "previewUrl": "https://...",
-  "explanation": "..."
-}
-```
-
----
-
 ### 协作功能
 
 #### WebSocket 连接
@@ -482,6 +485,19 @@ interface UsdDocument {
 }
 ```
 
+### AIConfig
+
+```typescript
+interface AIConfig {
+  provider: 'openai' | 'anthropic' | 'ollama' | 'custom';
+  apiKey?: string;
+  model: string;
+  baseURL?: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+```
+
 ### GenerationOptions
 
 ```typescript
@@ -561,7 +577,7 @@ enabled = false  # 默认关闭
 
 API 使用语义化版本控制。
 
-主版本变更时，会在 URL 中体现（如 `/v2/`。
+主版本变更时，会在 URL 中体现（如 `/v2/`）。
 
 ---
 
@@ -578,7 +594,7 @@ import { OriginClient } from '@origin/sdk';
 
 const client = new OriginClient({
   endpoint: 'http://localhost:8080',
-  token: 'your-jwt-token'
+  token: 'your-jwt-token'  // 云端协作时需要
 });
 
 const project = await client.projects.create({

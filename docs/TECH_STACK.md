@@ -114,6 +114,111 @@
 
 ---
 
+## AI 集成技术栈 (前端直接接入)
+
+### AI SDK
+
+| 技术 | 版本 | 用途 |
+|------|------|------|
+| **openai** | 4.20+ | OpenAI API (GPT-4) |
+| **@anthropic-ai/sdk** | 0.17+ | Anthropic API (Claude) |
+| **ollama-js** | - | 本地 LLM (可选) |
+
+### AI 依赖结构
+
+```json
+{
+  "dependencies": {
+    "openai": "^4.20.0",
+    "@anthropic-ai/sdk": "^0.17.0"
+  }
+}
+```
+
+### AI 服务实现
+
+```typescript
+// AI 服务接口
+interface AIService {
+  configure(config: AIConfig): void;
+  generateDSL(prompt: string, context: ProjectContext): Promise<string>;
+  getSuggestions(document: UsdDocument, intent: string): Promise<Suggestion[]>;
+  explainCode(code: string): Promise<string>;
+  optimizeDesign(dsl: string): Promise<string>;
+}
+
+// Provider 配置
+interface AIConfig {
+  provider: 'openai' | 'anthropic' | 'ollama' | 'custom';
+  apiKey?: string;
+  model: string;
+  baseURL?: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
+// OpenAI 实现
+import OpenAI from 'openai';
+
+class OpenAIService implements AIService {
+  private client: OpenAI;
+  private config: AIConfig;
+
+  constructor(config: AIConfig) {
+    this.config = config;
+    this.client = new OpenAI({
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+      dangerouslyAllowBrowser: true
+    });
+  }
+
+  async generateDSL(prompt: string, context: ProjectContext): Promise<string> {
+    const response = await this.client.chat.completions.create({
+      model: this.config.model,
+      messages: [
+        { role: 'system', content: this.buildSystemPrompt(context) },
+        { role: 'user', content: prompt }
+      ],
+      temperature: this.config.temperature ?? 0.7,
+      max_tokens: this.config.maxTokens ?? 4096
+    });
+
+    return response.choices[0].message.content ?? '';
+  }
+}
+
+// Anthropic 实现
+import Anthropic from '@anthropic-ai/sdk';
+
+class AnthropicService implements AIService {
+  private client: Anthropic;
+  private config: AIConfig;
+
+  constructor(config: AIConfig) {
+    this.config = config;
+    this.client = new Anthropic({
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+      dangerouslyAllowBrowser: true
+    });
+  }
+
+  async generateDSL(prompt: string, context: ProjectContext): Promise<string> {
+    const response = await this.client.messages.create({
+      model: this.config.model,
+      system: this.buildSystemPrompt(context),
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: this.config.maxTokens ?? 4096
+    });
+
+    return response.content[0].type === 'text' ? response.content[0].text : '';
+  }
+}
+```
+
+---
+
 ## Tauri 后端技术栈
 
 ### 核心框架
@@ -173,9 +278,6 @@ dirs = "5.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-# AI 客户端
-reqwest = { version = "0.11", features = ["json"] }
-
 # 工具
 anyhow = "1.0"
 thiserror = "1.0"
@@ -201,15 +303,6 @@ uuid = { version = "1.6", features = ["v4", "serde"] }
 | **PostgreSQL** | 15+ | 主数据库 |
 | **sqlx** | 0.7+ | 数据库访问 |
 | **Redis** | 7+ | 缓存和会话 |
-
-### AI 服务
-
-| 技术 | 版本 | 用途 |
-|------|------|------|
-| **Python** | 3.11+ | AI 服务语言 |
-| **FastAPI** | 0.104+ | API 框架 |
-| **Anthropic SDK** | - | Claude API |
-| **OpenAI SDK** | 1.0+ | OpenAI API (备选) |
 
 ### 存储服务
 
@@ -240,17 +333,6 @@ futures-util = "0.3"
 # 日志
 tracing = "0.1"
 tracing-subscriber = "0.3"
-```
-
-```python
-# Python AI 服务
-# requirements.txt
-fastapi==0.104.0
-uvicorn[standard]==0.24.0
-anthropic==0.7.0
-openai==1.3.0
-pydantic==2.5.0
-python-multipart==0.0.6
 ```
 
 ---
@@ -375,13 +457,6 @@ services:
     ports:
       - "6379:6379"
 
-  ai-service:
-    build: ./ai-service
-    environment:
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-    ports:
-      - "8000:8000"
-
 volumes:
   postgres_data:
 ```
@@ -419,11 +494,17 @@ volumes:
 - IPC 通信验证
 - 本地数据加密
 
+### AI API Key 安全
+
+- API Key 加密存储在本地
+- 不经过任何服务器
+- 用户完全控制 Key 使用
+- 支持自定义 Endpoint
+
 ### 云端服务安全
 
 - JWT 认证
 - RBAC 权限控制
-- API 限流 (可选，自托管可配置)
 - 输入验证与清理
 
 ---
@@ -476,3 +557,22 @@ volumes:
 3. 自动生成 Parser
 
 **备选**：Nom (性能更好，但学习曲线陡)
+
+### ADR-004: AI 服务前端接入
+
+**状态**: 已接受
+
+**背景**: AI 功能实现方式
+
+**决策**：AI 服务直接在前端调用 LLM API
+
+**理由**：
+1. 用户完全控制 API Key
+2. 降低服务器成本
+3. 更灵活的 Provider 选择
+4. 支持本地 LLM (Ollama)
+
+**后果**：
+- 需要安全存储 API Key
+- API 调用受用户网络影响
+- 需要支持多种 Provider

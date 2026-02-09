@@ -9,7 +9,7 @@
 │  │                    UI 层 (React)                           │ │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌───────────────────┐  │ │
 │  │  │ 可视化画布   │  │ DSL 编辑器   │  │ AI 助手面板        │  │ │
-│  │  │ (Fabric.js) │  │ (Monaco)    │  │ (Chat Interface)  │  │ │
+│  │  │ (Fabric.js) │  │ (Monaco)    │  │ (直接调用 LLM)     │  │ │
 │  │  └──────┬──────┘  └──────┬──────┘  └─────────┬─────────┘  │ │
 │  │         └─────────────────┼───────────────────┘            │ │
 │  │                           ↓                                │ │
@@ -35,21 +35,16 @@
 │  │              • 认证 • 路由 • 日志                         │ │
 │  └───────────────────────────────────────────────────────────┘ │
 │  ┌──────────────┐ ┌──────────────┐ ┌────────────────────────┐ │
-│  │ 协作服务     │ │ AI 服务       │ │ 生成服务                │ │
-│  │ (WebSocket)  │ │ (Python/Go)   │ │ (Rust)                 │ │
-│  │              │ │              │ │                        │ │
-│  │ • 实时同步   │ │ • 意图解析   │ │ • 多目标生成           │ │
-│  │ • 光标同步   │ │ • 代码生成   │ │ • 代码质量优化         │ │
-│  │ • 版本历史   │ │ • 智能建议   │ │                        │ │
-│  └──────────────┘ └──────────────┘ └────────────────────────┘ │
-│  ┌──────────────┐ ┌──────────────┐ ┌────────────────────────┐ │
-│  │ 项目服务     │ │ 存储服务      │ │ 集成服务                │ │
-│  │              │ │              │ │                        │ │
-│  │ • 项目 CRUD  │ │ PostgreSQL   │ │ • Git 集成             │ │
-│  │ • 权限管理   │ │ S3/MinIO     │ │ • CI/CD 触发           │ │
-│  │ • 导入导出   │ │ Redis Cache  │ │ • 部署发布             │ │
+│  │ 协作服务     │ │ 存储服务      │ │ 集成服务                │ │
+│  │ (WebSocket)  │ │              │ │                        │ │
+│  │              │ │ PostgreSQL   │ │ • Git 集成             │ │
+│  │ • 实时同步   │ │ S3/MinIO     │ │ • CI/CD 触发           │ │
+│  │ • 光标同步   │ │ Redis Cache  │ │ • 部署发布             │ │
+│  │ • 版本历史   │ │              │ │                        │ │
 │  └──────────────┘ └──────────────┘ └────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
+
+⚠️ AI 服务直接在客户端调用 LLM，不经过后端
 ```
 
 ## 三层架构模型
@@ -108,11 +103,16 @@
 └───────────────────────────────────────────────────────────┘
 ```
 
-#### AI 助手
+#### AI 助手 (前端直接调用 LLM)
 ```
 ┌───────────────────────────────────────────────────────────┐
-│  🤖 Origin AI                                      [●]    │
+│  🤖 Origin AI                                      [⚙️]   │
 ├───────────────────────────────────────────────────────────┤
+│                                                           │
+│  Provider: [OpenAI ▼]    Model: [GPT-4 ▼]                  │
+│  API Key: [sk-•••••••••••••••••••] [设置]                    │
+│                                                           │
+│  ──────────────────────────────────────────────────────   │
 │                                                           │
 │  你: 创建一个现代化的登录页面                              │
 │                                                           │
@@ -179,6 +179,178 @@
 │  │ └─────────┘ │  │             │  │                   │ │
 │  └─────────────┘  └─────────────┘  └───────────────────┘ │
 └───────────────────────────────────────────────────────────┘
+```
+
+## AI 架构 (前端直接接入)
+
+### AI 服务架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      AI 模块 (React)                         │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │                  AI Service Layer                     │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐ │   │
+│  │  │   Provider   │  │   Context    │  │   Prompt     │ │   │
+│  │  │   Manager    │  │   Builder    │  │   Template   │ │   │
+│  │  └──────────────┘  └──────────────┘  └─────────────┘ │   │
+│  └───────────────────────────┬────────────────────────────┘   │
+│                              ↓                                │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              LLM Provider Adapters                    │   │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────┐  │   │
+│  │  │   OpenAI    │ │  Anthropic  │ │    Local LLM    │  │   │
+│  │  │   (GPT-4)   │ │   (Claude)   │ │   (Ollama)      │  │   │
+│  │  └─────────────┘ └─────────────┘ └─────────────────┘  │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                              ↓                                │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │               用户配置 (本地存储)                      │   │
+│  │  • API Key                                            │   │
+│  │  • Provider 选择                                      │   │
+│  │  • Model 选择                                         │   │
+│  │  • 自定义 Endpoint (可选)                             │   │
+│  └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              ↓ HTTPS
+┌─────────────────────────────────────────────────────────────┐
+│                    外部 LLM 服务                             │
+│  • OpenAI API          • Anthropic API        • 其他        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### AI 功能实现
+
+```typescript
+// AI 服务接口
+interface AIService {
+  // 配置
+  configure(config: AIConfig): void;
+
+  // 生成 DSL
+  generateDSL(prompt: string, context: ProjectContext): Promise<string>;
+
+  // 获取建议
+  getSuggestions(document: UsdDocument, intent: string): Promise<Suggestion[]>;
+
+  // 解释代码
+  explainCode(code: string): Promise<string>;
+
+  // 优化设计
+  optimizeDesign(dsl: string): Promise<string>;
+}
+
+// Provider 配置
+interface AIConfig {
+  provider: 'openai' | 'anthropic' | 'ollama' | 'custom';
+  apiKey?: string;
+  model: string;
+  baseURL?: string;  // 自定义 endpoint
+  temperature?: number;
+  maxTokens?: number;
+}
+
+// 前端实现示例
+class OpenAIService implements AIService {
+  private client: OpenAI;
+  private config: AIConfig;
+
+  constructor(config: AIConfig) {
+    this.config = config;
+    this.client = new OpenAI({
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+      dangerouslyAllowBrowser: true  // 允许浏览器调用
+    });
+  }
+
+  async generateDSL(prompt: string, context: ProjectContext): Promise<string> {
+    const systemPrompt = this.buildSystemPrompt(context);
+
+    const response = await this.client.chat.completions.create({
+      model: this.config.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt }
+      ],
+      temperature: this.config.temperature ?? 0.7,
+      max_tokens: this.config.maxTokens ?? 4096
+    });
+
+    return response.choices[0].message.content ?? '';
+  }
+
+  private buildSystemPrompt(context: ProjectContext): string {
+    return `你是 Origin AI 助手，帮助用户创建应用设计。
+
+项目信息：
+- 框架: ${context.framework}
+- 平台: ${context.platforms.join(', ')}
+- 设计系统: ${context.theme ?? '默认'}
+
+请使用 USD (Unified Semantic DSL) v2 语法生成代码。
+
+语法规则：
+1. 使用声明式语法
+2. 定义状态、布局、交互
+3. 遵循 8 大语义维度
+
+输出格式：仅输出 USD DSL 代码，不要其他说明。`;
+  }
+}
+```
+
+### 用户配置界面
+
+```typescript
+// AI 设置组件
+function AISettings() {
+  const [config, setConfig] = useAIConfig();
+
+  return (
+    <div className="ai-settings">
+      <h2>AI 配置</h2>
+
+      <Select
+        label="Provider"
+        value={config.provider}
+        onChange={(provider) => setConfig({ ...config, provider })}
+        options={[
+          { value: 'openai', label: 'OpenAI (GPT-4)' },
+          { value: 'anthropic', label: 'Anthropic (Claude)' },
+          { value: 'ollama', label: 'Ollama (本地)' },
+          { value: 'custom', label: '自定义' }
+        ]}
+      />
+
+      <Input
+        label="API Key"
+        type="password"
+        value={config.apiKey ?? ''}
+        onChange={(apiKey) => setConfig({ ...config, apiKey })}
+        placeholder="sk-..."
+      />
+
+      {config.provider === 'custom' && (
+        <Input
+          label="Base URL"
+          value={config.baseURL ?? ''}
+          onChange={(baseURL) => setConfig({ ...config, baseURL })}
+          placeholder="https://api.example.com/v1"
+        />
+      )}
+
+      <Select
+        label="Model"
+        value={config.model}
+        onChange={(model) => setConfig({ ...config, model })}
+        options={getModelOptions(config.provider)}
+      />
+
+      <Button onClick={saveConfig}>保存配置</Button>
+    </div>
+  );
+}
 ```
 
 ## 核心模块详解
@@ -293,53 +465,6 @@ impl CodeGenerator for FlutterGenerator {
 }
 ```
 
-### 4. AI 服务
-
-```python
-# AI 服务接口
-class AIService:
-    def __init__(self, api_key: str, model: str = "claude-3-opus"):
-        self.client = Anthropic(api_key=api_key)
-        self.model = model
-
-    async def generate_dsl(
-        self,
-        prompt: str,
-        context: ProjectContext,
-    ) -> UsdDocument:
-        """根据自然语言生成 DSL"""
-        system_prompt = self._build_system_prompt(context)
-        response = await self.client.messages.create(
-            model=self.model,
-            system=system_prompt,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=4096,
-        )
-
-        # 解析生成的 DSL
-        dsl_code = self._extract_code(response.content)
-        return self.parser.parse(dsl_code)
-
-    async def suggest_improvements(
-        self,
-        document: UsdDocument,
-        user_intent: str,
-    ) -> list[Suggestion]:
-        """提供设计改进建议"""
-        pass
-
-    def _build_system_prompt(self, context: ProjectContext) -> str:
-        return f"""你是 Origin AI 助手，帮助用户创建应用设计。
-
-项目信息：
-- 框架: {context.framework}
-- 平台: {context.platforms}
-- 设计系统: {context.theme}
-
-请使用 USD (Unified Semantic DSL) v2 语法生成代码。
-"""
-```
-
 ## 数据流
 
 ### 设计到代码流程
@@ -366,28 +491,26 @@ class AIService:
    └─ 输出目标代码
 ```
 
-### AI 辅助流程
+### AI 辅助流程 (前端直接调用)
 
 ```
 1. 用户输入自然语言
    ↓
-2. AI 意图解析
-   ├─ 识别组件需求
-   ├─ 识别状态需求
-   ├─ 识别交互需求
-   └─ 识别数据需求
+2. 前端 AI 服务处理
+   ├─ 获取用户配置的 API Key
+   ├─ 选择 Provider (OpenAI/Anthropic/etc)
+   ├─ 构建 System Prompt
+   └─ 调用 LLM API
    ↓
-3. 生成 DSL 草稿
-   ├─ 结构语义
-   ├─ 状态语义
-   ├─ 交互语义
-   └─ 数据语义
+3. LLM 返回结果
+   ├─ 解析生成的 DSL
+   ├─ 验证语法正确性
+   └─ 显示预览
    ↓
-4. 应用并同步
+4. 用户确认后应用
    ├─ 更新 CRDT 文档
    ├─ 同步到可视化视图
-   ├─ 同步到 DSL 编辑器
-   └─ 等待用户确认/修改
+   └─ 同步到 DSL 编辑器
 ```
 
 ## 技术选型
@@ -404,6 +527,14 @@ class AIService:
 | Fabric.js | 5.3+ | 画布渲染 |
 | Monaco Editor | 0.44+ | DSL 编辑器 |
 
+### AI 集成 (前端)
+
+| 技术 | 版本 | 用途 |
+|------|------|------|
+| openai | 4.20+ | OpenAI SDK |
+| @anthropic-ai/sdk | 0.17+ | Anthropic SDK |
+| ollama-js | - | 本地 LLM (可选) |
+
 ### 后端 (本地/云端)
 
 | 技术 | 版本 | 用途 |
@@ -411,18 +542,9 @@ class AIService:
 | Rust | 1.75+ | 后端语言 |
 | Actix-web/Axum | - | Web 框架 |
 | sqlx | 0.7+ | 数据库访问 |
-| PostgreSQL | 15+ | 主数据库 |
-| Redis | 7+ | 缓存 |
+| PostgreSQL | 15+ | 主数据库 (云端) |
+| Redis | 7+ | 缓存 (云端) |
 | Pest/Nom | - | DSL Parser |
-
-### AI 服务
-
-| 技术 | 用途 |
-|------|------|
-| Python 3.11+ | AI 服务语言 |
-| FastAPI | API 框架 |
-| Anthropic SDK | Claude API |
-| OpenAI SDK | OpenAI API (备选) |
 
 ## 项目结构
 
@@ -441,8 +563,7 @@ origin/
 │   │   │   ├── flutter.rs
 │   │   │   ├── react.rs
 │   │   │   └── templates/
-│   │   ├── storage/        # 本地存储
-│   │   └── ai/             # AI 客户端
+│   │   └── storage/        # 本地存储
 │   └── icons/
 ├── src/                    # React 前端
 │   ├── main.tsx
@@ -450,7 +571,14 @@ origin/
 │   ├── components/         # UI 组件
 │   ├── canvas/             # 画布模块
 │   ├── editor/             # DSL 编辑器
-│   ├── ai/                 # AI 助手
+│   ├── ai/                 # AI 助手 (前端直接调用)
+│   │   ├── services/       # AI Service 实现
+│   │   │   ├── openai.ts
+│   │   │   ├── anthropic.ts
+│   │   │   ├── ollama.ts
+│   │   │   └── index.ts
+│   │   ├── prompts/        # Prompt 模板
+│   │   └── settings/       # AI 配置
 │   ├── stores/             # Zustand stores
 │   ├── lib/                # 工具库
 │   └── styles/             # 样式文件
@@ -465,15 +593,21 @@ origin/
 
 ## 部署架构
 
-### 本地模式（默认）
+### 本地模式（默认/推荐）
 ```
 Origin Desktop App (Tauri)
-├── 内置后端 (Rust)
-├── 本地存储 (SQLite/文件)
+├── 前端 (React)
+│   ├── 画布引擎
+│   ├── DSL 编辑器
+│   └── AI 服务 (直接调用 LLM)
+├── 后端 (Rust)
+│   ├── DSL Parser
+│   ├── 代码生成器
+│   └── 本地存储 (SQLite/文件)
 └── 可选云端同步
 ```
 
-### 云端模式（自托管）
+### 云端模式（自托管 - 协作功能）
 ```
 ┌─────────────────────────────────────┐
 │         Docker Compose 部署          │
@@ -483,12 +617,28 @@ Origin Desktop App (Tauri)
 │  │ (Rust)   │  │           │         │
 │  └──────────┘  └──────────┘         │
 │  ┌──────────┐  ┌──────────┐         │
-│  │ AI 服务   │  │ Redis    │         │
-│  │ (Python) │  │          │         │
-│  └──────────┘  └──────────┘         │
-│  ┌──────────┐  ┌──────────┐         │
 │  │ 前端     │  │ S3/MinIO │         │
 │  │ (Static) │  │          │         │
 │  └──────────┘  └──────────┘         │
+│                                     │
+│  注意：AI 功能仍在客户端调用         │
 └─────────────────────────────────────┘
 ```
+
+## 安全考虑
+
+### AI API Key 安全
+- API Key 存储在本地 (encrypted)
+- 不经过任何服务器
+- 用户完全控制 Key 使用
+- 支持自定义 Endpoint
+
+### 桌面应用安全
+- Tauri CSP (Content Security Policy)
+- IPC 通信验证
+- 本地数据加密
+
+### 云端服务安全
+- JWT 认证 (可选)
+- RBAC 权限控制 (可选)
+- 输入验证与清理
