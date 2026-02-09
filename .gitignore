@@ -6,6 +6,10 @@
 **/mutants.out*/
 Cargo.lock
 
+# Tauri specific
+src-tauri/target/
+src-tauri/Cargo.lock
+
 # Node.js / Frontend
 node_modules/
 dist/
@@ -24,6 +28,15 @@ yarn-error.log*
 pnpm-debug.log*
 .DS_Store
 *.tsbuildinfo
+
+# Tauri build outputs
+src-tauri/target/
+src-tauri/WixTools/
+src-tauri/app.7z
+src-tauri/app-updater/
+src-tauri/bundle/
+src-tauri/bundles/
+src-tauri/tauri.conf.json.backup
 
 # Environment
 .env
@@ -57,6 +70,10 @@ ehthumbs.db
 Thumbs.db
 desktop.ini
 
+# Tauri specific OS files
+src-tauri/icons/
+src-tauri/gen/
+
 # Docker
 *.log
 
@@ -83,3 +100,11 @@ temp/
 *.tmp
 *.bak
 *.backup
+
+# App specific
+*.dmg
+*.app
+*.exe
+*.msi
+*.deb
+*.AppImage
