@@ -30,14 +30,38 @@
 
 > **注**: Origin 可以作为纯静态应用部署，Next.js 主要提供更好的开发体验和可选的服务端能力。
 
-### UI 组件库
+### UI 组件库 - shadcn/ui
+
+**shadcn/ui 是 Origin 的主要 UI 组件库**
 
 | 技术 | 版本 | 用途 |
 |------|------|------|
-| **shadcn/ui** | - | 基础组件 (无运行时依赖) |
+| **shadcn/ui** | - | 基础组件 (复制到项目中) |
 | **Tailwind CSS** | 3.3+ | 样式系统 |
 | **Radix UI** | - | 无障碍组件底层 |
 | **Lucide React** | - | 图标库 |
+| **class-variance-authority** | - | CVA 变体管理 |
+| **tailwind-merge** | - | Tailwind 类合并 |
+
+**为什么选择 shadcn/ui？**
+
+| 特性 | shadcn/ui | MUI | Ant Design | Chakra UI |
+|------|-----------|-----|------------|-----------|
+| 运行时依赖 | 无 (复制代码) | 有 | 有 | 有 |
+| 包体积 | 最小 | 大 | 大 | 中 |
+| 可定制性 | 完全控制 | 有限 | 有限 | 中等 |
+| TypeScript | 原生支持 | 支持 | 支持 | 支持 |
+| 无障碍 | Radix 原生 | 好 | 好 | 好 |
+| 样式系统 | Tailwind | 自有 | 自有 | 自有 |
+
+**shadcn/ui 的优势：**
+1. **无运行时依赖** - 组件代码直接复制到项目中，完全控制
+2. **Tailwind 原生** - 与项目 Tailwind 配置无缝集成
+3. **Radix UI 底层** - 完善的无障碍支持和键盘导航
+4. **高度可定制** - 可以直接修改组件代码
+5. **渐进式采用** - 只复制需要的组件
+
+详细的 UI 组件设计请参考 [UI_COMPONENTS.md](docs/UI_COMPONENTS.md)
 
 ### 画布渲染
 
@@ -105,11 +129,21 @@
     "@radix-ui/react-select": "^2.0.0",
     "@radix-ui/react-tabs": "^1.0.0",
     "@radix-ui/react-tooltip": "^1.0.0",
+    "@radix-ui/react-popover": "^1.0.0",
+    "@radix-ui/react-slider": "^1.1.0",
+    "@radix-ui/react-switch": "^1.0.0",
+    "@radix-ui/react-toggle": "^1.0.0",
+    "@radix-ui/react-scroll-area": "^1.0.0",
+    "@radix-ui/react-separator": "^1.0.0",
+    "@radix-ui/react-slot": "^1.0.0",
+    "@radix-ui/react-label": "^2.0.0",
+    "@radix-ui/react-icons": "^1.3.0",
 
     "tailwindcss": "^3.3.0",
     "class-variance-authority": "^0.7.0",
     "tailwind-merge": "^2.0.0",
     "clsx": "^2.0.0",
+    "tailwindcss-animate": "^1.0.7",
 
     "lucide-react": "^0.300.0",
 
@@ -466,7 +500,7 @@ dependencies: [
 ## 开发工具
 
 ### 代码编辑器
-- **推荐**：VS Code + Rust Analyzer
+- **推荐**：VS Code + rust-analyzer
 
 ### VS Code 插件
 
@@ -678,3 +712,23 @@ EXPOSE 80
 - 需要安全存储 API Key
 - API 调用受用户网络影响
 - 需要支持多种 Provider
+
+### ADR-005: 选择 shadcn/ui 而非其他组件库
+
+**状态**: 已接受
+
+**背景**: UI 组件库选择
+
+**决策**：使用 shadcn/ui
+
+**理由**：
+1. 无运行时依赖 (组件代码直接复制到项目)
+2. Tailwind 原生集成
+3. 基于 Radix UI，无障碍支持完善
+4. 完全可定制，可以直接修改组件代码
+5. 渐进式采用，只复制需要的组件
+
+**后果**：
+- 需要手动管理组件代码
+- 初期设置需要更多配置
+- 需要团队熟悉 Tailwind CSS

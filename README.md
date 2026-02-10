@@ -64,6 +64,7 @@ Origin 是一个基于 **统一语义 DSL (USD)** 的下一代应用开发平台
 
 ### 纯 Web 前端
 - **Next.js 14** + **React 18** + **TypeScript**
+- **shadcn/ui** - UI 组件库 (基于 Radix UI + Tailwind CSS)
 - **Fabric.js** - 画布渲染
 - **Monaco Editor** - DSL 编辑器
 - **Zustand** - 状态管理
@@ -97,6 +98,7 @@ Origin 是一个基于 **统一语义 DSL (USD)** 的下一代应用开发平台
 - [统一语义 DSL 规范](docs/DSL_SPEC_V2.md) - USD v2 完整语法
 - [工作流程](docs/WORKFLOW.md) - 三种编辑方式的使用流程
 - [技术栈](docs/TECH_STACK_WEB.md) - 技术选型详解
+- [UI 组件](docs/UI_COMPONENTS.md) - shadcn/ui 组件系统
 - [API 文档](docs/API.md) - API 规范
 - [任务清单](docs/TODO.md) - 开发任务和里程碑
 
