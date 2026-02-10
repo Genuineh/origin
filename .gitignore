@@ -1,4 +1,4 @@
-# Rust
+# Rust (WASM Parser)
 /target
 /debug
 **/*.rs.bk
@@ -6,16 +6,18 @@
 **/mutants.out*/
 Cargo.lock
 
-# Tauri specific
-src-tauri/target/
-src-tauri/Cargo.lock
+# WASM build outputs
+usd-parser-wasm/pkg/
+usd-parser-wasm/target/
+*.wasm
+*.js.map
 
-# Node.js / Frontend
+# Node.js / Next.js
 node_modules/
-dist/
-build/
 .next/
 out/
+build/
+dist/
 .nuxt/
 .cache/
 .parcel-cache/
@@ -28,15 +30,6 @@ yarn-error.log*
 pnpm-debug.log*
 .DS_Store
 *.tsbuildinfo
-
-# Tauri build outputs
-src-tauri/target/
-src-tauri/WixTools/
-src-tauri/app.7z
-src-tauri/app-updater/
-src-tauri/bundle/
-src-tauri/bundles/
-src-tauri/tauri.conf.json.backup
 
 # Environment
 .env
@@ -70,14 +63,10 @@ ehthumbs.db
 Thumbs.db
 desktop.ini
 
-# Tauri specific OS files
-src-tauri/icons/
-src-tauri/gen/
-
 # Docker
 *.log
 
-# Database
+# Database (local dev)
 *.db
 *.sqlite
 *.sqlite3
@@ -101,10 +90,8 @@ temp/
 *.bak
 *.backup
 
-# App specific
-*.dmg
-*.app
-*.exe
-*.msi
-*.deb
-*.AppImage
+# Vercel
+.vercel
+
+# Turbo
+.turbo

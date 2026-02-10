@@ -1,10 +1,10 @@
-# Origin - 系统架构设计
+# Origin - 系统架构设计 (纯 Web 版本)
 
 ## 整体架构
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      桌面客户端 (Tauri + React)                  │
+│                      浏览器 (纯 Web + TypeScript)                │
 │  ┌───────────────────────────────────────────────────────────┐ │
 │  │                    UI 层 (React)                           │ │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌───────────────────┐  │ │
@@ -18,16 +18,16 @@
 │  │  │  • 本地状态管理  • 冲突解决  • 离线支持             │   │ │
 │  │  └────────────────────┬────────────────────────────────┘   │ │
 │  └───────────────────────┼───────────────────────────────────┘ │
-│                          ↓ IPC (Tauri Command)                 │
+│                          ↓                                       │
 │  ┌───────────────────────┴───────────────────────────────────┐ │
-│  │                   Rust 后端 (Tauri)                       │ │
+│  │                   WASM Parser (Rust)                      │ │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐  │ │
-│  │  │ DSL Parser  │ │ Code        │ │ Local Storage       │  │ │
-│  │  │             │ │ Generator   │ │ (SQLite/File)       │  │ │
+│  │  │ DSL Parser  │ │ Validator   │ │ Formatter            │  │ │
+│  │  │ (WASM)      │ │ (WASM)      │ │ (WASM)               │  │ │
 │  │  └─────────────┘ └─────────────┘ └─────────────────────┘  │ │
 │  └───────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
-                          ↓ WebSocket/HTTP (可选)
+                          ↓ HTTPS/WebSocket (可选)
 ┌─────────────────────────────────────────────────────────────────┐
 │                      云端服务 (自托管 - 可选)                    │
 │  ┌───────────────────────────────────────────────────────────┐ │
@@ -44,7 +44,7 @@
 │  └──────────────┘ └──────────────┘ └────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
 
-⚠️ AI 服务直接在客户端调用 LLM，不经过后端
+⚠️ AI 服务直接在浏览器中调用 LLM，不经过后端
 ```
 
 ## 三层架构模型
@@ -206,7 +206,7 @@
 │                              ↓                                │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │               用户配置 (本地存储)                      │   │
-│  │  • API Key                                            │   │
+│  │  • API Key (IndexedDB, 加密)                          │   │
 │  │  • Provider 选择                                      │   │
 │  │  • Model 选择                                         │   │
 │  │  • 自定义 Endpoint (可选)                             │   │
@@ -353,45 +353,110 @@ function AISettings() {
 }
 ```
 
-## 核心模块详解
+## WASM DSL Parser
 
-### 1. DSL Parser (Rust)
+### 架构设计
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    WASM Parser (Rust)                       │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │                  Parser Layer                         │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐ │   │
+│  │  │   Pest PEG   │  │   AST Nodes  │  │  Validator   │ │   │
+│  │  │   Parser     │  │              │  │              │ │   │
+│  │  └──────────────┘  └──────────────┘  └─────────────┘ │   │
+│  └───────────────────────────┬────────────────────────────┘   │
+│                              ↓                                │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              wasm-bindgen Interface                  │   │
+│  │  • parse()       • validate()    • format()          │   │
+│  └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                  JavaScript/WASM Bridge                     │
+│  import init, { UsdParser } from 'usd-parser-wasm'          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Rust 实现
 
 ```rust
-// 核心数据结构
-pub struct UsdDocument {
-    pub version: String,
-    pub metadata: Metadata,
-    pub imports: Vec<Import>,
-    pub screens: Vec<Screen>,
-    pub components: Vec<Component>,
-    pub entities: Vec<Entity>,
-    pub apis: Vec<ApiDefinition>,
-    pub theme: Theme,
+// usd-parser-wasm/src/lib.rs
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+pub struct UsdParser {
+    // Parser 状态
 }
 
-pub enum SemanticNode {
-    Screen(Screen),
-    Component(Component),
-    Entity(Entity),
-    Api(ApiDefinition),
-    Theme(Theme),
-    GlobalState(GlobalState),
-    Flow(Flow),
-}
+#[wasm_bindgen]
+impl UsdParser {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Self {
+            // 初始化
+        }
+    }
 
-// Parser 接口
-pub trait UsdParser {
-    fn parse(&self, source: &str) -> Result<UsdDocument, ParseError>;
-    fn validate(&self, doc: &UsdDocument) -> Result<Vec<Diagnostic>, ValidationError>;
-    fn format(&self, doc: &UsdDocument) -> String;
+    #[wasm_bindgen]
+    pub fn parse(&self, source: &str) -> Result<JsValue, JsValue> {
+        // 解析 DSL
+        let ast = self.parse_internal(source)?;
+        Ok(serde_wasm_bindgen::to_value(&ast)?)
+    }
+
+    #[wasm_bindgen]
+    pub fn validate(&self, source: &str) -> Result<JsValue, JsValue> {
+        // 验证 DSL
+        let errors = self.validate_internal(source)?;
+        Ok(serde_wasm_bindgen::to_value(&errors)?)
+    }
+
+    #[wasm_bindgen]
+    pub fn format(&self, source: &str) -> String {
+        // 格式化 DSL
+        self.format_internal(source)
+    }
 }
 ```
 
-### 2. 同步引擎 (CRDT)
+### JavaScript 调用
 
 ```typescript
-// 使用 Yjs/Automerge 实现 CRDT
+// src/lib/wasm/parser.ts
+import initWasm, { UsdParser } from 'usd-parser-wasm';
+
+let parser: UsdParser | null = null;
+
+export async function initParser() {
+  await initWasm();
+  parser = new UsdParser();
+}
+
+export async function parseDSL(source: string): Promise<UsdDocument> {
+  if (!parser) await initParser();
+  return parser!.parse(source);
+}
+
+export async function validateDSL(source: string): Promise<ValidationError[]> {
+  if (!parser) await initParser();
+  return parser!.validate(source);
+}
+
+export function formatDSL(source: string): string {
+  if (!parser) initParser();
+  return parser!.format(source);
+}
+```
+
+## 核心模块详解
+
+### 1. 同步引擎 (CRDT)
+
+```typescript
+// 使用 Yjs 实现 CRDT
 interface SyncEngine {
   // 本地状态
   document: Y.Doc;
@@ -413,9 +478,30 @@ interface SyncEngine {
 }
 ```
 
+### 2. 本地存储
+
+```typescript
+// 使用 IndexedDB + Origin Private File System
+interface LocalStorage {
+  // 项目数据 (IndexedDB)
+  saveProject(id: string, project: Project): Promise<void>;
+  loadProject(id: string): Promise<Project>;
+  listProjects(): Promise<Project[]>;
+
+  // 文件持久化 (OPFS)
+  saveFile(path: string, content: Blob): Promise<void>;
+  loadFile(path: string): Promise<Blob>;
+
+  // AI 配置 (加密)
+  saveAIConfig(config: AIConfig): Promise<void>;
+  loadAIConfig(): Promise<AIConfig>;
+}
+```
+
 ### 3. 代码生成器
 
 ```rust
+// 服务端代码生成器 (通过 API 调用)
 pub trait CodeGenerator {
     // 生成设置
     type Config;
@@ -480,15 +566,15 @@ impl CodeGenerator for FlutterGenerator {
    ├─ 应用到 CRDT 文档
    └─ 广播到其他视图
    ↓
-3. DSL 更新（Single Source of Truth）
-   ├─ 验证语义正确性
-   ├─ 更新类型信息
-   └─ 触发依赖更新
+3. WASM Parser 处理
+   ├─ 解析 DSL
+   ├─ 验证语法
+   └─ 生成 AST
    ↓
 4. 代码生成（按需）
-   ├─ 解析最新 DSL
+   ├─ 发送到云端 API
    ├─ 应用模板
-   └─ 输出目标代码
+   └─ 返回生成的代码包
 ```
 
 ### AI 辅助流程 (前端直接调用)
@@ -497,13 +583,13 @@ impl CodeGenerator for FlutterGenerator {
 1. 用户输入自然语言
    ↓
 2. 前端 AI 服务处理
-   ├─ 获取用户配置的 API Key
+   ├─ 从 IndexedDB 获取加密的 API Key
    ├─ 选择 Provider (OpenAI/Anthropic/etc)
    ├─ 构建 System Prompt
    └─ 调用 LLM API
    ↓
 3. LLM 返回结果
-   ├─ 解析生成的 DSL
+   ├─ WASM Parser 解析生成的 DSL
    ├─ 验证语法正确性
    └─ 显示预览
    ↓
@@ -515,17 +601,26 @@ impl CodeGenerator for FlutterGenerator {
 
 ## 技术选型
 
-### 桌面客户端
+### 纯 Web 前端
 
 | 技术 | 版本 | 用途 |
 |------|------|------|
-| Tauri | 2.0+ | 桌面应用框架 |
+| Next.js | 14+ | 全栈框架 |
 | React | 18.2+ | UI 框架 |
 | TypeScript | 5.0+ | 类型系统 |
-| Vite | 5.0+ | 构建工具 |
 | Zustand | 4.4+ | 状态管理 |
 | Fabric.js | 5.3+ | 画布渲染 |
 | Monaco Editor | 0.44+ | DSL 编辑器 |
+| Yjs | 13.6+ | CRDT 同步 |
+| idb | 8.0+ | IndexedDB 封装 |
+
+### WASM Parser
+
+| 技术 | 版本 | 用途 |
+|------|------|------|
+| Rust | 1.75+ | Parser 实现 |
+| wasm-bindgen | - | Rust ↔ JS 绑定 |
+| Pest | 2.7+ | PEG 解析器 |
 
 ### AI 集成 (前端)
 
@@ -535,7 +630,7 @@ impl CodeGenerator for FlutterGenerator {
 | @anthropic-ai/sdk | 0.17+ | Anthropic SDK |
 | ollama-js | - | 本地 LLM (可选) |
 
-### 后端 (本地/云端)
+### 云端服务 (可选)
 
 | 技术 | 版本 | 用途 |
 |------|------|------|
@@ -544,50 +639,37 @@ impl CodeGenerator for FlutterGenerator {
 | sqlx | 0.7+ | 数据库访问 |
 | PostgreSQL | 15+ | 主数据库 (云端) |
 | Redis | 7+ | 缓存 (云端) |
-| Pest/Nom | - | DSL Parser |
 
 ## 项目结构
 
 ```
 origin/
-├── src-tauri/              # Tauri 后端 (Rust)
+├── usd-parser-wasm/        # WASM Parser (Rust)
 │   ├── Cargo.toml
-│   ├── src/
-│   │   ├── main.rs
-│   │   ├── commands/       # Tauri Commands
-│   │   ├── dsl/            # DSL Parser
-│   │   │   ├── parser.rs
-│   │   │   ├── ast.rs
-│   │   │   └── validator.rs
-│   │   ├── generator/      # 代码生成器
-│   │   │   ├── flutter.rs
-│   │   │   ├── react.rs
-│   │   │   └── templates/
-│   │   └── storage/        # 本地存储
-│   └── icons/
-├── src/                    # React 前端
-│   ├── main.tsx
-│   ├── App.tsx
-│   ├── components/         # UI 组件
-│   ├── canvas/             # 画布模块
-│   ├── editor/             # DSL 编辑器
-│   ├── ai/                 # AI 助手 (前端直接调用)
-│   │   ├── services/       # AI Service 实现
+│   └── src/
+│       ├── lib.rs
+│       ├── parser.rs
+│       ├── ast.rs
+│       └── validator.rs
+├── src/                     # Next.js 前端
+│   ├── app/                 # App Router
+│   ├── components/          # UI 组件
+│   ├── canvas/              # 画布模块
+│   ├── editor/              # DSL 编辑器
+│   ├── ai/                  # AI 助手 (前端直接调用)
+│   │   ├── services/        # AI Service 实现
 │   │   │   ├── openai.ts
 │   │   │   ├── anthropic.ts
 │   │   │   ├── ollama.ts
 │   │   │   └── index.ts
-│   │   ├── prompts/        # Prompt 模板
-│   │   └── settings/       # AI 配置
-│   ├── stores/             # Zustand stores
-│   ├── lib/                # 工具库
-│   └── styles/             # 样式文件
-├── resources/              # 资源文件
-├── docs/                   # 文档
-├── templates/              # 代码生成模板
-│   ├── flutter/
-│   ├── react-native/
-│   └── swiftui/
+│   │   ├── prompts/         # Prompt 模板
+│   │   └── settings/        # AI 配置
+│   ├── stores/              # Zustand stores
+│   ├── lib/                 # 工具库
+│   │   └── wasm/            # WASM 绑定
+│   └── styles/              # 样式文件
+├── public/                  # 静态资源
+├── docs/                    # 文档
 └── package.json
 ```
 
@@ -595,15 +677,15 @@ origin/
 
 ### 本地模式（默认/推荐）
 ```
-Origin Desktop App (Tauri)
-├── 前端 (React)
+浏览器访问 origin.app (或本地运行)
+├── 前端 (Next.js Static)
 │   ├── 画布引擎
 │   ├── DSL 编辑器
+│   ├── WASM Parser
 │   └── AI 服务 (直接调用 LLM)
-├── 后端 (Rust)
-│   ├── DSL Parser
-│   ├── 代码生成器
-│   └── 本地存储 (SQLite/文件)
+├── 本地存储
+│   ├── IndexedDB (项目数据)
+│   └── OPFS (文件持久化)
 └── 可选云端同步
 ```
 
@@ -621,22 +703,45 @@ Origin Desktop App (Tauri)
 │  │ (Static) │  │          │         │
 │  └──────────┘  └──────────┘         │
 │                                     │
-│  注意：AI 功能仍在客户端调用         │
+│  注意：AI 功能仍在浏览器中调用        │
 └─────────────────────────────────────┘
+```
+
+### 静态托管选项
+
+```bash
+# Vercel (推荐)
+vercel deploy
+
+# Netlify
+netlify deploy --prod
+
+# Cloudflare Pages
+npm run build && wrangler pages publish out
+
+# 自托管 Nginx
+cp -r out/* /var/www/origin/
 ```
 
 ## 安全考虑
 
 ### AI API Key 安全
-- API Key 存储在本地 (encrypted)
+- API Key 加密存储在 IndexedDB
+- 使用用户密码加密/解密
 - 不经过任何服务器
 - 用户完全控制 Key 使用
 - 支持自定义 Endpoint
 
-### 桌面应用安全
-- Tauri CSP (Content Security Policy)
-- IPC 通信验证
-- 本地数据加密
+### Web 应用安全
+- CSP (Content Security Policy)
+- 输入验证与清理
+- HTTPS 强制
+- CSRF 保护
+
+### 本地存储安全
+- IndexedDB 数据加密
+- 敏感信息不存储在 localStorage
+- 定期清理过期数据
 
 ### 云端服务安全
 - JWT 认证 (可选)
